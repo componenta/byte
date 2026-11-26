@@ -255,7 +255,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         }
 
         $b = self::operandValue($operand);
-        return abs($this->value - $b) <= max($epsilon, $epsilon * max(abs($this->value), abs($b)));
+        return abs(NumericComparison::subtract($this->value, $b)) <= max($epsilon, $epsilon * max(abs($this->value), abs($b)));
     }
 
     public function lessThan(self|int|float|string $operand): bool
@@ -410,7 +410,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             );
         }
 
-        return new self($this->value - $operand, $this->displayUnit);
+        return new self(NumericComparison::subtract($this->value, $operand), $this->displayUnit);
     }
 
     /**
@@ -616,36 +616,10 @@ final class BitRate implements \Stringable, \JsonSerializable
         $endValue   = self::operandValue($end);
         $stepValue  = self::operandValue($step);
 
-        if (NumericComparison::compare($endValue, $startValue) < 0) {
-            throw new \InvalidArgumentException('End value cannot be less than start value.');
-        }
-
-        if ($stepValue <= 0) {
-            throw new \InvalidArgumentException('Step value must be greater than zero.');
-        }
-
-        $lastIndex = floor(($endValue - $startValue) / $stepValue);
-        if (!is_finite($lastIndex) || $lastIndex >= self::MAX_RANGE_ITERATIONS) {
-            throw new \InvalidArgumentException('Range exceeds the maximum number of elements.');
-        }
-
-        $count = (int) $lastIndex + 1;
-
         $result = [];
-
-        for ($i = 0; $i < $count; $i++) {
-            $current = $startValue + ($i * $stepValue);
-
-            if (NumericComparison::compare($current, $endValue) > 0) {
-                break;
-            }
-
-            if ($i > 0 && NumericComparison::compare($current, $result[$i - 1]->value) <= 0) {
-                throw new \InvalidArgumentException('Range step is smaller than numeric precision.');
-            }
-            $result[] = new self($current, $displayUnit);
+        foreach (NumericRange::values($startValue, $endValue, $stepValue, self::MAX_RANGE_ITERATIONS) as $value) {
+            $result[] = new self($value, $displayUnit);
         }
-
         return $result;
     }
 

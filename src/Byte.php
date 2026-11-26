@@ -363,7 +363,7 @@ final class Byte implements \Stringable
             );
         }
 
-        return new self($this->value - $parsed);
+        return new self(NumericComparison::subtract($this->value, $parsed));
     }
 
     /**
@@ -535,37 +535,10 @@ final class Byte implements \Stringable
         $endValue   = self::parse($end);
         $stepValue  = self::parse($step);
 
-        if (NumericComparison::compare($endValue, $startValue) < 0) {
-            throw new \InvalidArgumentException('End value cannot be less than start value.');
-        }
-
-        if ($stepValue <= 0) {
-            throw new \InvalidArgumentException('Step value must be greater than zero.');
-        }
-
-        $lastIndex = floor(($endValue - $startValue) / $stepValue);
-        if (!is_finite($lastIndex) || $lastIndex >= self::MAX_RANGE_ITERATIONS) {
-            throw new \InvalidArgumentException('Range exceeds the maximum number of elements.');
-        }
-
-        $count = (int) $lastIndex + 1;
-
         $result = [];
-
-        for ($i = 0; $i < $count; $i++) {
-            $current = $startValue + ($i * $stepValue);
-
-            if (NumericComparison::compare($current, $endValue) > 0) {
-                break;
-            }
-
-            if ($i > 0 && NumericComparison::compare($current, $result[$i - 1]->value) <= 0) {
-                throw new \InvalidArgumentException('Range step is smaller than numeric precision.');
-            }
-
-            $result[] = new self($current);
+        foreach (NumericRange::values($startValue, $endValue, $stepValue, self::MAX_RANGE_ITERATIONS) as $value) {
+            $result[] = new self($value);
         }
-
         return $result;
     }
 

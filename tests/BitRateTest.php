@@ -71,3 +71,12 @@ it('orders large mixed integers and floats consistently', function (): void {
         ->and($integer->equalTo($floating))->toBeFalse()
         ->and(BitRate::maximum([$floating, $integer])->value)->toBe(9007199254740993);
 });
+
+it('preserves a mixed integer-float decrement and zero tolerance equality', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integer representation.');
+    }
+    $rate = BitRate::bps(9007199254740993);
+    expect($rate->decrement(9007199254740992.0)->value)->toBe(1)
+        ->and($rate->approximatelyEquals(9007199254740992.0, 0.0))->toBeFalse();
+});

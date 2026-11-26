@@ -61,3 +61,16 @@ it('orders mixed numeric representations without discarding integer precision', 
         ->and($integer->modulo(2)->value)->toBe(1)
         ->and(Byte::maximum([$floating, $integer])->value)->toBe(9007199254740993);
 });
+
+it('does not round away intermediate integer range values', function (): void {
+    $max = PHP_INT_MAX;
+    $values = array_map(static fn (Byte $byte) => $byte->value, Byte::range(-$max, $max, $max));
+    expect($values)->toBe([-$max, 0, $max]);
+});
+
+it('preserves a mixed integer-float difference within integer bounds', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integer representation.');
+    }
+    expect(Byte::b(9007199254740993)->decrement(9007199254740992.0)->value)->toBe(1);
+});
