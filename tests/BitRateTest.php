@@ -59,3 +59,15 @@ it('rejects nonfinite rates and unsafe integer conversions', function (): void {
         ->and(fn () => BitRate::bps(1)->calculateTransferAmount(-1))->toThrow(\InvalidArgumentException::class)
         ->and(fn () => BitRate::bps(1)->calculateTransferTime(-1))->toThrow(\InvalidArgumentException::class);
 });
+
+it('orders large mixed integers and floats consistently', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integer representation.');
+    }
+    $integer = BitRate::bps(9007199254740993);
+    $floating = BitRate::bps(9007199254740992.0);
+    expect($integer->compare($floating))->toBe(1)
+        ->and($integer->greaterThan($floating))->toBeTrue()
+        ->and($integer->equalTo($floating))->toBeFalse()
+        ->and(BitRate::maximum([$floating, $integer])->value)->toBe(9007199254740993);
+});

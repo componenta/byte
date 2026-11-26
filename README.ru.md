@@ -30,12 +30,12 @@ composer require componenta/byte
 ```php
 use Componenta\Stdlib\Byte;
 
-$size = Byte::mb(1.5);
+$size = Byte::mib(1.5);
 
-(string) $size;        // "1.5 MB"
-$size->toBits();       // 12582912.0
-$size->to('kB', 2);    // форматированная строка
-$size->getValue('MB'); // числовое значение в мегабайтах
+(string) $size;        // "1.5 MiB"
+$size->toBits();       // 12582912
+$size->to('KiB', 2);    // форматированная строка
+$size->getValue('MiB'); // числовое значение в мебибайтах
 ```
 
 `Byte` принимает числа и строки в человекочитаемом формате:
@@ -51,7 +51,7 @@ $c = Byte::from(2, 'GB');
 `Byte` поддерживает:
 
 - сравнение: `compare`, `equalTo`, `lessThan`, `greaterThan`, проверки диапазона;
-- арифметику: `increment`, `decrement`, `multiply`, `divide`, `modulo`, `abs`;
+- арифметику: `increment`, `decrement`, `multiply`, `divide`, `ratio`, `modulo`, `abs`;
 - агрегацию: `sum`, `average`, `maximum`, `minimum`;
 - оценку времени передачи: `getTransferTime`, `getFormattedTransferTime`.
 
@@ -79,7 +79,7 @@ BitRate::kilobytesPerSecond(512);
 
 ## Правила единиц
 
-- `Byte` использует двоичные единицы хранения на базе 1024.
+- `Byte` поддерживает десятичные единицы SI и двоичные единицы IEC.
 - `BitRate` использует десятичные единицы передачи на базе 1000.
 - `BitRate` хранит внутреннее значение как биты в секунду.
 - `Mbps` и `MBps` — разные обозначения: мегабиты в секунду и мегабайты в секунду.

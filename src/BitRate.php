@@ -239,7 +239,7 @@ final class BitRate implements \Stringable, \JsonSerializable
 
     public function compare(self|int|float|string $operand): int
     {
-        return $this->value <=> self::operandValue($operand);
+        return NumericComparison::compare($this->value, self::operandValue($operand));
     }
 
     public function equalTo(self|int|float|string $operand): bool
@@ -260,12 +260,12 @@ final class BitRate implements \Stringable, \JsonSerializable
 
     public function lessThan(self|int|float|string $operand): bool
     {
-        return $this->value < self::operandValue($operand);
+        return $this->compare($operand) < 0;
     }
 
     public function greaterThan(self|int|float|string $operand): bool
     {
-        return $this->value > self::operandValue($operand);
+        return $this->compare($operand) > 0;
     }
 
     public function lessThanOrEqual(self|int|float|string $operand): bool
@@ -404,7 +404,7 @@ final class BitRate implements \Stringable, \JsonSerializable
     {
         $operand = self::operandValue($value);
 
-        if ($operand > $this->value) {
+        if (NumericComparison::compare($operand, $this->value) > 0) {
             throw new \InvalidArgumentException(
                 "Cannot decrement: operand ($operand bps) exceeds current value ({$this->value} bps)."
             );
@@ -478,7 +478,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         $max = $this->value;
 
         foreach ($values as $v) {
-            $max = max($max, self::operandValue($v));
+            $max = NumericComparison::max($max, self::operandValue($v));
         }
 
         return new self($max, $this->displayUnit);
@@ -494,7 +494,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         $min = $this->value;
 
         foreach ($values as $v) {
-            $min = min($min, self::operandValue($v));
+            $min = NumericComparison::min($min, self::operandValue($v));
         }
 
         return new self($min, $this->displayUnit);
@@ -530,7 +530,8 @@ final class BitRate implements \Stringable, \JsonSerializable
         if (!is_finite($seconds) || $seconds < 0) {
             throw new \InvalidArgumentException('Transfer duration must be finite and nonnegative.');
         }
-        return Byte::fromBits($this->value * $seconds);
+        $bits = $this->value * $seconds;
+        return is_finite($bits) ? Byte::fromBits($bits) : Byte::b(($this->value / 8) * $seconds);
     }
 
     /** Alias of {@see calculateTransferAmount()}. */
@@ -574,7 +575,9 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot find maximum of an empty array.');
         }
 
-        return new self(max(array_map(self::operandValue(...), $rates)), $displayUnit);
+        $values = array_map(self::operandValue(...), $rates);
+        $first = array_shift($values);
+        return new self(array_reduce($values, NumericComparison::max(...), $first), $displayUnit);
     }
 
     /**
@@ -586,7 +589,9 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot find minimum of an empty array.');
         }
 
-        return new self(min(array_map(self::operandValue(...), $rates)), $displayUnit);
+        $values = array_map(self::operandValue(...), $rates);
+        $first = array_shift($values);
+        return new self(array_reduce($values, NumericComparison::min(...), $first), $displayUnit);
     }
 
     /**
@@ -611,7 +616,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         $endValue   = self::operandValue($end);
         $stepValue  = self::operandValue($step);
 
-        if ($endValue < $startValue) {
+        if (NumericComparison::compare($endValue, $startValue) < 0) {
             throw new \InvalidArgumentException('End value cannot be less than start value.');
         }
 
@@ -631,11 +636,11 @@ final class BitRate implements \Stringable, \JsonSerializable
         for ($i = 0; $i < $count; $i++) {
             $current = $startValue + ($i * $stepValue);
 
-            if ($current > $endValue) {
+            if (NumericComparison::compare($current, $endValue) > 0) {
                 break;
             }
 
-            if ($i > 0 && $current <= $result[$i - 1]->value) {
+            if ($i > 0 && NumericComparison::compare($current, $result[$i - 1]->value) <= 0) {
                 throw new \InvalidArgumentException('Range step is smaller than numeric precision.');
             }
             $result[] = new self($current, $displayUnit);

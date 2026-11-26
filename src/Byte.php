@@ -257,31 +257,17 @@ final class Byte implements \Stringable
     }
 
 
-    /**
-     * Compares this Byte instance with another value or an array of values.
-     *
-     * For a single value returns one of the COMPARE_* integer constants.
-     *
-     * For an array:
-     *  - MODE_ALL: returns the shared COMPARE_* constant if every comparison
-     *    yields the same result, otherwise returns false.
-     *  - MODE_ANY: returns COMPARE_EQ if any item is equal, COMPARE_GT if any
-     *    item is less than this value, COMPARE_LT otherwise.
-     *
-     * @return int|bool
-     *
-     * @throws \InvalidArgumentException On invalid mode.
-     */
+    /** Three-way comparison with one operand. */
     public function compare(Byte|int|float|string $operand): int
     {
-        return $this->value <=> self::parse($operand);
+        return NumericComparison::compare($this->value, self::parse($operand));
     }
 
     public function equalTo(Byte|int|float|string|array $operand, string $mode = self::MODE_ALL): bool
     {
         return $this->applyComparisonMode(
             $operand,
-            fn($item) => self::parse($item) == $this->value,
+            fn($item) => $this->compare($item) === 0,
             $mode,
         );
     }
@@ -290,7 +276,7 @@ final class Byte implements \Stringable
     {
         return $this->applyComparisonMode(
             $operand,
-            fn($item) => $this->value < self::parse($item),
+            fn($item) => $this->compare($item) < 0,
             $mode,
         );
     }
@@ -299,7 +285,7 @@ final class Byte implements \Stringable
     {
         return $this->applyComparisonMode(
             $operand,
-            fn($item) => $this->value > self::parse($item),
+            fn($item) => $this->compare($item) > 0,
             $mode,
         );
     }
@@ -308,7 +294,7 @@ final class Byte implements \Stringable
     {
         return $this->applyComparisonMode(
             $operand,
-            fn($item) => $this->value <= self::parse($item),
+            fn($item) => $this->compare($item) <= 0,
             $mode,
         );
     }
@@ -317,7 +303,7 @@ final class Byte implements \Stringable
     {
         return $this->applyComparisonMode(
             $operand,
-            fn($item) => $this->value >= self::parse($item),
+            fn($item) => $this->compare($item) >= 0,
             $mode,
         );
     }
@@ -327,7 +313,7 @@ final class Byte implements \Stringable
      */
     public function between(Byte|int|float|string $min, Byte|int|float|string $max): bool
     {
-        return $this->value >= self::parse($min) && $this->value <= self::parse($max);
+        return $this->compare($min) >= 0 && $this->compare($max) <= 0;
     }
 
     /**
@@ -348,8 +334,7 @@ final class Byte implements \Stringable
                 );
             }
 
-            $results[] = $this->value >= self::parse($range[0])
-                && $this->value <= self::parse($range[1]);
+            $results[] = $this->between($range[0], $range[1]);
         }
 
         return match ($mode) {
@@ -372,7 +357,7 @@ final class Byte implements \Stringable
     {
         $parsed = self::parse($value);
 
-        if ($parsed > $this->value) {
+        if (NumericComparison::compare($parsed, $this->value) > 0) {
             throw new \LogicException(
                 "Cannot decrement: operand ($parsed) exceeds current value ({$this->value})."
             );
@@ -423,7 +408,9 @@ final class Byte implements \Stringable
             throw new \DivisionByZeroError('Cannot take modulo with zero.');
         }
 
-        return new self(fmod((float) $this->value, (float) $parsed));
+        return new self(is_int($this->value) && is_int($parsed)
+            ? $this->value % $parsed
+            : fmod($this->value, $parsed));
     }
 
     public function abs(): self
@@ -437,7 +424,7 @@ final class Byte implements \Stringable
         $max = $this->value;
 
         foreach (is_array($values) ? $values : [$values] as $v) {
-            $max = max($max, self::parse($v));
+            $max = NumericComparison::max($max, self::parse($v));
         }
 
         return new self($max);
@@ -449,7 +436,7 @@ final class Byte implements \Stringable
         $min = $this->value;
 
         foreach (is_array($values) ? $values : [$values] as $v) {
-            $min = min($min, self::parse($v));
+            $min = NumericComparison::min($min, self::parse($v));
         }
 
         return new self($min);
@@ -511,7 +498,9 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Cannot find maximum of an empty array.');
         }
 
-        return new self(max(array_map(self::parse(...), $bytes)));
+        $values = array_map(self::parse(...), $bytes);
+        $first = array_shift($values);
+        return new self(array_reduce($values, NumericComparison::max(...), $first));
     }
 
     /**
@@ -525,7 +514,9 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Cannot find minimum of an empty array.');
         }
 
-        return new self(min(array_map(self::parse(...), $bytes)));
+        $values = array_map(self::parse(...), $bytes);
+        $first = array_shift($values);
+        return new self(array_reduce($values, NumericComparison::min(...), $first));
     }
 
     /**
@@ -544,7 +535,7 @@ final class Byte implements \Stringable
         $endValue   = self::parse($end);
         $stepValue  = self::parse($step);
 
-        if ($endValue < $startValue) {
+        if (NumericComparison::compare($endValue, $startValue) < 0) {
             throw new \InvalidArgumentException('End value cannot be less than start value.');
         }
 
@@ -564,11 +555,11 @@ final class Byte implements \Stringable
         for ($i = 0; $i < $count; $i++) {
             $current = $startValue + ($i * $stepValue);
 
-            if ($current > $endValue) {
+            if (NumericComparison::compare($current, $endValue) > 0) {
                 break;
             }
 
-            if ($i > 0 && $current <= $result[$i - 1]->value) {
+            if ($i > 0 && NumericComparison::compare($current, $result[$i - 1]->value) <= 0) {
                 throw new \InvalidArgumentException('Range step is smaller than numeric precision.');
             }
 
@@ -594,7 +585,9 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Bit rate must be greater than zero.');
         }
 
-        return self::finite($this->toBits() / $bitsPerSecond);
+        return self::finite($this->value > PHP_FLOAT_MAX / 8
+            ? ($this->value / $bitsPerSecond) * 8
+            : $this->toBits() / $bitsPerSecond);
     }
 
     /**

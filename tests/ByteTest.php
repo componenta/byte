@@ -48,3 +48,16 @@ it('distinguishes scaling from ratios of data sizes', function (): void {
         ->and(Byte::mb(6)->ratio(Byte::mb(2)))->toBe(3)
         ->and(Byte::mb(1)->compare(Byte::mb(2)))->toBe(-1);
 });
+
+it('orders mixed numeric representations without discarding integer precision', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integer representation.');
+    }
+    $integer = Byte::b(9007199254740993);
+    $floating = Byte::b(9007199254740992.0);
+    expect($integer->compare($floating))->toBe(1)
+        ->and($floating->lessThan($integer))->toBeTrue()
+        ->and($integer->equalTo($floating))->toBeFalse()
+        ->and($integer->modulo(2)->value)->toBe(1)
+        ->and(Byte::maximum([$floating, $integer])->value)->toBe(9007199254740993);
+});
