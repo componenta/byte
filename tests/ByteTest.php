@@ -74,3 +74,12 @@ it('preserves a mixed integer-float difference within integer bounds', function 
     }
     expect(Byte::b(9007199254740993)->decrement(9007199254740992.0)->value)->toBe(1);
 });
+
+it('rejects ranges exceeding the allocation cap by exactly one element', function (): void {
+    expect(fn () => Byte::range(0, 1_000_000, 1))->toThrow(\InvalidArgumentException::class);
+});
+
+it('handles finite ranges even when their span overflows floating point', function (): void {
+    $values = array_map(static fn (Byte $byte) => $byte->value, Byte::range(-PHP_FLOAT_MAX, PHP_FLOAT_MAX, PHP_FLOAT_MAX));
+    expect($values)->toBe([-PHP_FLOAT_MAX, 0.0, PHP_FLOAT_MAX]);
+});

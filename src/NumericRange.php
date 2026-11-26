@@ -23,7 +23,7 @@ final class NumericRange
 
         // Reject enormous requests before allocating objects. The loop enforces
         // the exact limit independently of floating-point estimate error.
-        if (!is_finite($estimate) || $estimate >= $limit + 1) {
+        if (!is_finite($estimate) || $estimate >= $limit) {
             throw new \InvalidArgumentException('Range exceeds the maximum number of elements.');
         }
 

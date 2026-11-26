@@ -80,3 +80,7 @@ it('preserves a mixed integer-float decrement and zero tolerance equality', func
     expect($rate->decrement(9007199254740992.0)->value)->toBe(1)
         ->and($rate->approximatelyEquals(9007199254740992.0, 0.0))->toBeFalse();
 });
+
+it('rejects ranges exceeding the allocation cap by exactly one element', function (): void {
+    expect(fn () => BitRate::range(0, 1_000_000, 1))->toThrow(\InvalidArgumentException::class);
+});
