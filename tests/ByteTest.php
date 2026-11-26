@@ -133,5 +133,7 @@ it('preserves the exact integer mean when the integer sum overflows', function (
     expect(Byte::average([$max, $max])->value)->toBe($max)
         ->and(Byte::average([$max, $max - 2])->value)->toBe($max - 1)
         ->and(Byte::average([$min, $min])->value)->toBe($min)
-        ->and(Byte::average([$max, $max, -$max, -$max, 5])->value)->toBe(1);
+        ->and(Byte::average([$max, $max, -$max, -$max, 5])->value)->toBe(1)
+        ->and(Byte::average([$max, 1, -$max, 0])->value)->toBe(0.25)
+        ->and(Byte::average([$max, 1, -$max, 3])->value)->toBe(1);
 });

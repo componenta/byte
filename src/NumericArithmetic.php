@@ -68,11 +68,13 @@ final class NumericArithmetic
     {
         $count = count($values);
         $sum = 0;
+        $exactIntegralSum = true;
         foreach ($values as $value) {
             $sum = self::add($sum, $value);
+            $exactIntegralSum = $exactIntegralSum && is_int($sum);
         }
 
-        if (is_int($sum)) {
+        if ($exactIntegralSum) {
             return self::divide($sum, $count);
         }
 
