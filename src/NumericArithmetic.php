@@ -72,6 +72,17 @@ final class NumericArithmetic
             $sum = self::add($sum, $value);
         }
 
+        if (is_int($sum)) {
+            return self::divide($sum, $count);
+        }
+
+        // Integer summation can promote to a finite float on overflow, even
+        // when the exact integral mean would fit in a PHP integer.
+        $integral = self::integralAverage($values, $count);
+        if ($integral !== null) {
+            return $integral;
+        }
+
         if (is_finite($sum)) {
             return self::divide($sum, $count);
         }
@@ -95,6 +106,38 @@ final class NumericArithmetic
         // Guard against floating-point overshoot of the normalized mean.
         $mean = max(-1.0, min(1.0, $sum / $count));
         return $mean * $scale;
+    }
+
+    /**
+     * Divide each integral operand before accumulating, keeping the quotient
+     * and remainder separate. Both accumulators stay within integer bounds.
+     *
+     * @param non-empty-array<int|float> $values
+     */
+    private static function integralAverage(array $values, int $count): int|float|null
+    {
+        $quotient = 0;
+        $remainder = 0;
+        foreach ($values as $value) {
+            $value = self::asIntegerIfExact($value);
+            if (!is_int($value)) {
+                return null;
+            }
+
+            $quotient += intdiv($value, $count);
+            $part = $value % $count;
+            if ($part > 0 && $remainder >= $count - $part) {
+                ++$quotient;
+                $remainder -= $count - $part;
+            } elseif ($part < 0 && $remainder <= -$count - $part) {
+                --$quotient;
+                $remainder += $count + $part;
+            } else {
+                $remainder += $part;
+            }
+        }
+
+        return $remainder === 0 ? $quotient : $quotient + $remainder / $count;
     }
 
     public static function modulo(int|float $left, int|float $right): int|float

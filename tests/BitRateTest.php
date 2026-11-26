@@ -136,3 +136,10 @@ it('computes a finite average even when the sum overflows', function (): void {
         ->and($average->displayUnit)->toBe($unit)
         ->and(BitRate::average([2, 4])->value)->toBe(3);
 });
+
+it('preserves exact integer rate averages when the integer sum overflows', function (): void {
+    $max = PHP_INT_MAX;
+
+    expect(BitRate::average([$max, $max])->value)->toBe($max)
+        ->and(BitRate::average([$max, $max - 2])->value)->toBe($max - 1);
+});

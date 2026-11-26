@@ -125,3 +125,13 @@ it('computes a finite average even when the sum overflows', function (): void {
         ->and(Byte::average([PHP_FLOAT_MAX, PHP_FLOAT_MAX, -PHP_FLOAT_MAX, -PHP_FLOAT_MAX])->value)->toBe(0.0)
         ->and(Byte::average([2, 4])->value)->toBe(3);
 });
+
+it('preserves the exact integer mean when the integer sum overflows', function (): void {
+    $max = PHP_INT_MAX;
+    $min = PHP_INT_MIN;
+
+    expect(Byte::average([$max, $max])->value)->toBe($max)
+        ->and(Byte::average([$max, $max - 2])->value)->toBe($max - 1)
+        ->and(Byte::average([$min, $min])->value)->toBe($min)
+        ->and(Byte::average([$max, $max, -$max, -$max, 5])->value)->toBe(1);
+});
