@@ -4,16 +4,9 @@ declare(strict_types=1);
 
 namespace Componenta\Stdlib;
 
-/**
- * Canonical binary storage unit (B, kB, MB, ..., YB).
- *
- * Implements {@see ByteUnitInterface}.
- * Cases are declared from smallest to largest so {@see bestFit()}
- * can iterate in reverse without sorting.
- */
 enum ByteUnit: string implements ByteUnitInterface
 {
-    case B  = 'B';
+    case B = 'B';
     case KB = 'kB';
     case MB = 'MB';
     case GB = 'GB';
@@ -22,74 +15,69 @@ enum ByteUnit: string implements ByteUnitInterface
     case EB = 'EB';
     case ZB = 'ZB';
     case YB = 'YB';
+    case KIB = 'KiB';
+    case MIB = 'MiB';
+    case GIB = 'GiB';
+    case TIB = 'TiB';
+    case PIB = 'PiB';
+    case EIB = 'EiB';
+    case ZIB = 'ZiB';
+    case YIB = 'YiB';
 
-    private const int BASE = 1024;
-
-
-    /** {@inheritdoc} */
     public function label(): string
     {
         return $this->value;
     }
 
-    /** {@inheritdoc} */
     public function exponent(): int
     {
         return match ($this) {
-            self::B  => 0,
-            self::KB => 1,
-            self::MB => 2,
-            self::GB => 3,
-            self::TB => 4,
-            self::PB => 5,
-            self::EB => 6,
-            self::ZB => 7,
-            self::YB => 8,
+            self::B => 0,
+            self::KB, self::KIB => 1,
+            self::MB, self::MIB => 2,
+            self::GB, self::GIB => 3,
+            self::TB, self::TIB => 4,
+            self::PB, self::PIB => 5,
+            self::EB, self::EIB => 6,
+            self::ZB, self::ZIB => 7,
+            self::YB, self::YIB => 8,
         };
     }
 
-    /** {@inheritdoc} */
+    public function isBinary(): bool
+    {
+        return str_ends_with($this->value, 'iB');
+    }
+
     public function multiplier(): int|float
     {
-        return self::BASE ** $this->exponent();
+        return ($this->isBinary() ? 1024 : 1000) ** $this->exponent();
     }
 
-
-    /**
-     * Resolves a label string to an ByteUnit.
-     *
-     * Tries exact match first via {@see tryFrom()}, then case-insensitive
-     * fallback so that "mb", "MB", "mB" all resolve to {@see self::MB}.
-     *
-     * @throws \ValueError If the label is not recognised.
-     */
     public static function fromLabel(string $label): self
     {
-        $case = self::tryFrom($label);
-        if ($case !== null) {
-            return $case;
+        $label = trim($label);
+        if ($label === 'KB') {
+            return self::KB;
         }
 
-        foreach (self::cases() as $case) {
-            if (strcasecmp($label, $case->value) === 0) {
-                return $case;
-            }
-        }
-
-        throw new \ValueError("Unrecognised ByteUnit label: '$label'.");
+        return self::tryFrom($label)
+            ?? throw new \ValueError("Unrecognised byte unit: '$label'.");
     }
 
-    /**
-     * Returns the most appropriate unit for humanizing a byte value.
-     *
-     * Iterates from largest to smallest (cases are declared smallest-first,
-     * so {@see array_reverse()} gives the correct descending order).
-     * The value is guaranteed >= 0 by the {@see Byte} invariant.
-     */
-    public static function bestFit(int|float $bytes): self
+    /** Chooses a display unit within the requested SI or IEC family. */
+    public static function bestFit(int|float $bytes, bool $binary = true): self
     {
-        foreach (array_reverse(self::cases()) as $unit) {
-            if ($unit !== self::B && $bytes >= $unit->multiplier()) {
+        if (!is_finite($bytes)) {
+            throw new \InvalidArgumentException('Byte size must be finite.');
+        }
+
+        $bytes = abs($bytes);
+        $units = $binary
+            ? [self::YIB, self::ZIB, self::EIB, self::PIB, self::TIB, self::GIB, self::MIB, self::KIB]
+            : [self::YB, self::ZB, self::EB, self::PB, self::TB, self::GB, self::MB, self::KB];
+        foreach ($units as $unit) {
+            if ($bytes >= $unit->multiplier()) {
                 return $unit;
             }
         }

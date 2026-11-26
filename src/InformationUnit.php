@@ -23,16 +23,6 @@ enum InformationUnit: string implements InformationUnitInterface
 
     public function getFactor(): int
     {
-        return match ($this) {
-            self::B  => 0,
-            self::KB => 1,
-            self::MB => 2,
-            self::GB => 3,
-            self::TB => 4,
-            self::PB => 5,
-            self::EB => 6,
-            self::ZB => 7,
-            self::YB => 8,
-        };
+        return ByteUnit::fromLabel($this->value)->exponent();
     }
 }

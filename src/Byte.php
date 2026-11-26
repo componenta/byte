@@ -28,19 +28,6 @@ final class Byte implements \Stringable
      */
     public readonly int|float $value;
 
-    /**
-     * Mapping of units to their corresponding exponential factors.
-     * For example, 'GB' corresponds to 3 (i.e. 1024^3 bytes).
-     *
-     * @var array<string, int>
-     */
-    private const array UNITS = [
-        'YB' => 8, 'ZB' => 7, 'EB' => 6,
-        'PB' => 5, 'TB' => 4, 'GB' => 3,
-        'MB' => 2, 'kB' => 1, 'B'  => 0,
-    ];
-
-    private const int MULTIPLIER = 1024;
 
     public function __construct(int|float|string $value)
     {
@@ -103,7 +90,7 @@ final class Byte implements \Stringable
      *
      * @throws \InvalidArgumentException If the unit is not supported.
      */
-    public static function from(int|float $value, string $unit): self
+    public static function from(int|float $value, string|ByteUnit $unit): self
     {
         return new self($value * self::multiplierFor($unit));
     }
@@ -111,6 +98,46 @@ final class Byte implements \Stringable
     /**
      * Creates a Byte instance from a bit value.
      */
+    public static function kib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::KIB);
+    }
+
+    public static function mib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::MIB);
+    }
+
+    public static function gib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::GIB);
+    }
+
+    public static function tib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::TIB);
+    }
+
+    public static function pib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::PIB);
+    }
+
+    public static function eib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::EIB);
+    }
+
+    public static function zib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::ZIB);
+    }
+
+    public static function yib(int|float $value): self
+    {
+        return self::from($value, ByteUnit::YIB);
+    }
+
     public static function fromBits(int|float $bits): self
     {
         return new self($bits / 8);
@@ -147,10 +174,11 @@ final class Byte implements \Stringable
      *
      * @throws \InvalidArgumentException If the unit is not supported.
      */
-    public function to(string $unit = 'B', ?int $precision = null, string $delim = ' '): string
+    public function to(string|ByteUnit $unit = 'B', ?int $precision = null, string $delim = ' '): string
     {
-        [$exponent, $label] = self::resolveUnit($unit);
-        $converted = $this->value / pow(self::MULTIPLIER, $exponent);
+        $resolved = self::resolveUnit($unit);
+        $label = $resolved->label();
+        $converted = $this->value / $resolved->multiplier();
 
         if ($precision !== null) {
             $converted = round($converted, $precision);
@@ -204,18 +232,17 @@ final class Byte implements \Stringable
      *
      * @throws \InvalidArgumentException If the unit is not supported.
      */
-    public function getValue(string $unit, ?int $precision = null): float|int
+    public function getValue(string|ByteUnit $unit, ?int $precision = null): float|int
     {
-        [$exponent] = self::resolveUnit($unit);
-        $value = $this->value / pow(self::MULTIPLIER, $exponent);
+        $value = $this->value / self::resolveUnit($unit)->multiplier();
 
         return $precision !== null ? round($value, $precision) : $value;
     }
 
     /** Converts bytes to bits. */
-    public function toBits(): float
+    public function toBits(): int|float
     {
-        return $this->value * 8;
+        return self::finite($this->value * 8);
     }
 
     /**
@@ -245,20 +272,9 @@ final class Byte implements \Stringable
      *
      * @throws \InvalidArgumentException On invalid mode.
      */
-    public function compare(Byte|int|float|string|array $operand, string $mode = self::MODE_ALL): int|bool
+    public function compare(Byte|int|float|string $operand): int
     {
-        if (!is_array($operand)) {
-            return $this->compareSingle($operand);
-        }
-
-        $results = array_map(fn($item) => $this->compareSingle($item), $operand);
-
-        return match ($mode) {
-            self::MODE_ALL => count(array_unique($results)) === 1 ? $results[0] : false,
-            self::MODE_ANY => in_array(self::COMPARE_EQ, $results, true) ? self::COMPARE_EQ
-                : (in_array(self::COMPARE_GT, $results, true) ? self::COMPARE_GT : self::COMPARE_LT),
-            default        => throw new \InvalidArgumentException("Invalid mode: $mode"),
-        };
+        return $this->value <=> self::parse($operand);
     }
 
     public function equalTo(Byte|int|float|string|array $operand, string $mode = self::MODE_ALL): bool
@@ -326,7 +342,7 @@ final class Byte implements \Stringable
         $results = [];
 
         foreach ($ranges as $range) {
-            if (!is_array($range) || count($range) !== 2) {
+            if (!is_array($range) || !array_is_list($range) || count($range) !== 2) {
                 throw new \InvalidArgumentException(
                     'Each range must be an array with exactly two elements [min, max].'
                 );
@@ -368,15 +384,24 @@ final class Byte implements \Stringable
     /**
      * @throws \DivisionByZeroError If the divisor is zero.
      */
-    public function divide(Byte|int|float|string $value): self
+    public function divide(int|float $value): self
     {
-        $parsed = self::parse($value);
+        return new self($this->value / self::nonZero($value));
+    }
 
-        if ($parsed == 0) {
+    /** Dividing two sizes produces a dimensionless ratio. */
+    public function ratio(Byte|int|float|string $value): int|float
+    {
+        return self::finite($this->value / self::nonZero(self::parse($value)));
+    }
+
+    private static function nonZero(int|float $value): int|float
+    {
+        if (self::finite($value) == 0) {
             throw new \DivisionByZeroError('Cannot divide by zero.');
         }
 
-        return new self($this->value / $parsed);
+        return $value;
     }
 
     public function multiply(int|float $value): self
@@ -411,7 +436,7 @@ final class Byte implements \Stringable
     {
         $max = $this->value;
 
-        foreach ((array) $values as $v) {
+        foreach (is_array($values) ? $values : [$values] as $v) {
             $max = max($max, self::parse($v));
         }
 
@@ -423,7 +448,7 @@ final class Byte implements \Stringable
     {
         $min = $this->value;
 
-        foreach ((array) $values as $v) {
+        foreach (is_array($values) ? $values : [$values] as $v) {
             $min = min($min, self::parse($v));
         }
 
@@ -527,14 +552,12 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Step value must be greater than zero.');
         }
 
-        $count = (int) ceil(($endValue - $startValue) / $stepValue) + 1;
-
-        if ($count > self::MAX_RANGE_ITERATIONS) {
-            throw new \InvalidArgumentException(
-                "Range would produce $count iterations, exceeding the limit of "
-                . self::MAX_RANGE_ITERATIONS . '.'
-            );
+        $lastIndex = floor(($endValue - $startValue) / $stepValue);
+        if (!is_finite($lastIndex) || $lastIndex >= self::MAX_RANGE_ITERATIONS) {
+            throw new \InvalidArgumentException('Range exceeds the maximum number of elements.');
         }
+
+        $count = (int) $lastIndex + 1;
 
         $result = [];
 
@@ -543,6 +566,10 @@ final class Byte implements \Stringable
 
             if ($current > $endValue) {
                 break;
+            }
+
+            if ($i > 0 && $current <= $result[$i - 1]->value) {
+                throw new \InvalidArgumentException('Range step is smaller than numeric precision.');
             }
 
             $result[] = new self($current);
@@ -563,17 +590,17 @@ final class Byte implements \Stringable
             ? $bitRate->value
             : (is_numeric($bitRate) ? $bitRate + 0 : BitRate::fromHumanReadable($bitRate)->value);
 
-        if ($bitsPerSecond <= 0) {
+        if ($this->value < 0 || !is_finite($bitsPerSecond) || $bitsPerSecond <= 0) {
             throw new \InvalidArgumentException('Bit rate must be greater than zero.');
         }
 
-        return $this->toBits() / $bitsPerSecond;
+        return self::finite($this->toBits() / $bitsPerSecond);
     }
 
     /**
      * Formats the transfer time into a human-readable string based on a bit rate.
      */
-    public function getFormattedTransferTime(BitRate|int|float|string $bitRate, ?string $language = null): string
+    public function getFormattedTransferTime(BitRate|int|float|string $bitRate): string
     {
         return self::formatSeconds($this->getTransferTime($bitRate));
     }
@@ -593,58 +620,37 @@ final class Byte implements \Stringable
         }
 
         if (is_numeric($value)) {
-            return $value + 0;
+            return self::finite($value + 0);
         }
 
-        $value = trim((string) $value);
-
-        if (!preg_match('/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{1,2})$/', $value, $matches)) {
-            throw new \InvalidArgumentException(
-                "Failed to parse '$value': expected a number optionally followed by a unit (e.g. \"5 MB\")."
-            );
+        if (!preg_match('/\A([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([A-Za-z]{1,3})\z/', trim($value), $matches)) {
+            throw new \InvalidArgumentException('Expected a number followed by a byte unit.');
         }
 
-        [, $number, $unit] = $matches;
-
-        return (float) $number * self::multiplierFor($unit);
+        return self::finite(($matches[1] + 0) * self::multiplierFor($matches[2]));
     }
 
-
-    /**
-     * Returns the byte multiplier for a given unit string.
-     *
-     * @throws \InvalidArgumentException If the unit is not supported.
-     */
-    private static function multiplierFor(string $unit): int|float
+    private static function finite(int|float $value): int|float
     {
-        [$exponent] = self::resolveUnit($unit);
-
-        return pow(self::MULTIPLIER, $exponent);
-    }
-
-    /**
-     * Resolves a unit string to its [exponent, canonical label] pair.
-     *
-     * @return array{0: int, 1: string}
-     *
-     * @throws \InvalidArgumentException If the unit is not supported.
-     */
-    private static function resolveUnit(string $unit): array
-    {
-        foreach (self::UNITS as $label => $exponent) {
-            if (strcasecmp($unit, $label) === 0) {
-                return [$exponent, $label];
-            }
+        if (!is_finite($value)) {
+            throw new \InvalidArgumentException('Byte size must be finite.');
         }
 
-        throw new \InvalidArgumentException("Unsupported unit: '$unit'.");
+        return $value;
     }
 
-    private function compareSingle(Byte|int|float|string $operand): int
+    private static function multiplierFor(string|ByteUnit $unit): int|float
     {
-        $other = self::parse($operand);
+        return self::resolveUnit($unit)->multiplier();
+    }
 
-        return $this->value <=> $other;
+    private static function resolveUnit(string|ByteUnit $unit): ByteUnit
+    {
+        try {
+            return $unit instanceof ByteUnit ? $unit : ByteUnit::fromLabel($unit);
+        } catch (\ValueError $error) {
+            throw new \InvalidArgumentException('Unsupported byte unit.', previous: $error);
+        }
     }
 
     /**
@@ -678,7 +684,11 @@ final class Byte implements \Stringable
             return round($seconds, 3) . ' seconds';
         }
 
-        $seconds = (int) round($seconds);
+        $seconds = round($seconds);
+        if ($seconds >= (float) PHP_INT_MAX + 1.0) {
+            throw new \OverflowException('Transfer time exceeds integer range.');
+        }
+        $seconds = (int) $seconds;
         $days = intdiv($seconds, 86_400);
         $seconds %= 86_400;
         $hours = intdiv($seconds, 3_600);

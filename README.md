@@ -30,12 +30,12 @@ This package is standalone.
 ```php
 use Componenta\Stdlib\Byte;
 
-$size = Byte::mb(1.5);
+$size = Byte::mib(1.5);
 
-(string) $size;        // "1.5 MB"
-$size->toBits();       // 12582912.0
-$size->to('kB', 2);    // formatted string
-$size->getValue('MB'); // numeric value in megabytes
+(string) $size;        // "1.5 MiB"
+$size->toBits();       // 12582912
+$size->to('KiB', 2);    // formatted string
+$size->getValue('MiB'); // numeric value in mebibytes
 ```
 
 `Byte` accepts numeric values and human-readable strings:
@@ -51,7 +51,7 @@ $c = Byte::from(2, 'GB');
 `Byte` supports:
 
 - comparison: `compare`, `equalTo`, `lessThan`, `greaterThan`, range checks
-- arithmetic: `increment`, `decrement`, `multiply`, `divide`, `modulo`, `abs`
+- arithmetic: `increment`, `decrement`, `multiply`, `divide` (scalar), `ratio` (size-to-size), `modulo`, `abs`
 - aggregation: `sum`, `average`, `maximum`, `minimum`
 - transfer estimates: `getTransferTime`, `getFormattedTransferTime`
 
@@ -79,7 +79,7 @@ BitRate::kilobytesPerSecond(512);
 
 ## Unit Rules
 
-- `Byte` uses binary storage units based on 1024.
+- `Byte` supports SI decimal units (kB, MB, GB) and IEC binary units (KiB, MiB, GiB). The unqualified factories kb/mb/gb use SI; kib/mib/gib use IEC. Automatic display selects IEC units. Lowercase b denotes bits, not bytes.
 - `BitRate` uses decimal transfer units based on 1000.
 - `BitRate` stores its internal value as bits per second.
 - `Mbps` and `MBps` are different labels: megabits per second vs megabytes per second.
@@ -87,3 +87,5 @@ BitRate::kilobytesPerSecond(512);
 ## Serialization
 
 `BitRate` implements `JsonSerializable`. `Byte` implements `Stringable` and exposes explicit conversion methods for numeric values and formatted strings.
+
+Comparison is exact within PHP's numeric representation; BitRate::approximatelyEquals() is explicitly opt-in. Nonfinite numeric input is rejected. Values beyond exact integer representation use floating-point approximation. Byte::compare() accepts one operand; collection predicates are separate. Transfer times and amounts require nonnegative sizes, rates and durations. The unused language argument was removed.

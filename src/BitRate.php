@@ -32,15 +32,6 @@ final class BitRate implements \Stringable, \JsonSerializable
     /** Maximum iterations allowed in {@see range()} to prevent infinite loops. */
     private const int MAX_RANGE_ITERATIONS = 1_000_000;
 
-    /**
-     * Relative epsilon for float comparison.
-     *
-     * Comparison uses: diff <= max(EPSILON, EPSILON * max(|a|, |b|))
-     * This correctly handles values across all scales, from single bps
-     * up to terabits per second, where an absolute epsilon would either
-     * be too tight (failing on large values) or too loose (treating
-     * meaningfully different small values as equal).
-     */
     private const float EPSILON = 1.0e-10;
 
     /**
@@ -48,7 +39,7 @@ final class BitRate implements \Stringable, \JsonSerializable
      */
     private function __construct(int|float $value, BitRateUnit $displayUnit)
     {
-        if ($value < 0) {
+        if (!is_finite($value) || $value < 0) {
             throw new \InvalidArgumentException(
                 "BitRate value must be >= 0, $value given."
             );
@@ -220,7 +211,16 @@ final class BitRate implements \Stringable, \JsonSerializable
      */
     public function toInt(int $roundingMode = PHP_ROUND_HALF_UP): int
     {
-        return (int) round($this->value, 0, $roundingMode);
+        if (is_int($this->value)) {
+            return $this->value;
+        }
+
+        $rounded = round($this->value, 0, $roundingMode);
+        if ($rounded >= (float) PHP_INT_MAX + 1.0) {
+            throw new \OverflowException('Bit rate exceeds integer range.');
+        }
+
+        return (int) $rounded;
     }
 
     /** Raw numeric value in the given unit without formatting. */
@@ -237,41 +237,25 @@ final class BitRate implements \Stringable, \JsonSerializable
     }
 
 
-    /**
-     * Three-way comparison against a single operand.
-     *
-     * Delegates equality to {@see equalTo()} so that the relative-epsilon
-     * strategy is applied consistently. Without this, `compare()` and
-     * `equalTo()` could disagree on values that differ only by floating-point
-     * noise (e.g. a rate computed via multiply/divide vs one created directly).
-     */
     public function compare(self|int|float|string $operand): int
     {
-        if ($this->equalTo($operand)) {
-            return 0;
-        }
-
-        return $this->value < self::operandValue($operand) ? -1 : 1;
+        return $this->value <=> self::operandValue($operand);
     }
 
-    /**
-     * Returns true if this value equals the operand.
-     *
-     * Uses the same relative epsilon strategy as Byte::equalTo(), so
-     * that comparison is correct across all scales from bps to Tbps:
-     *
-     *   diff <= max(EPSILON, EPSILON * max(|a|, |b|))
-     *
-     * An absolute epsilon (abs(a - b) < 1e-10) fails for large values where
-     * floating-point noise is many orders of magnitude larger than 1e-10.
-     */
     public function equalTo(self|int|float|string $operand): bool
     {
-        $a    = $this->value;
-        $b    = self::operandValue($operand);
-        $diff = abs($a - $b);
+        return $this->compare($operand) === 0;
+    }
 
-        return $diff <= max(self::EPSILON, self::EPSILON * max(abs($a), abs($b)));
+    /** Explicit approximate comparison; never used for ordering. */
+    public function approximatelyEquals(self|int|float|string $operand, float $epsilon = self::EPSILON): bool
+    {
+        if (!is_finite($epsilon) || $epsilon < 0) {
+            throw new \InvalidArgumentException('Comparison tolerance must be finite and nonnegative.');
+        }
+
+        $b = self::operandValue($operand);
+        return abs($this->value - $b) <= max($epsilon, $epsilon * max(abs($this->value), abs($b)));
     }
 
     public function lessThan(self|int|float|string $operand): bool
@@ -286,12 +270,12 @@ final class BitRate implements \Stringable, \JsonSerializable
 
     public function lessThanOrEqual(self|int|float|string $operand): bool
     {
-        return $this->equalTo($operand) || $this->lessThan($operand);
+        return $this->compare($operand) <= 0;
     }
 
     public function greaterThanOrEqual(self|int|float|string $operand): bool
     {
-        return $this->equalTo($operand) || $this->greaterThan($operand);
+        return $this->compare($operand) >= 0;
     }
     /** @param array<self|int|float|string> $operands */
     public function equalToAny(array $operands): bool
@@ -391,7 +375,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         $results = [];
 
         foreach ($ranges as $range) {
-            if (!is_array($range) || count($range) !== 2) {
+            if (!is_array($range) || !array_is_list($range) || count($range) !== 2) {
                 throw new \InvalidArgumentException(
                     'Each range must be a two-element array [min, max].'
                 );
@@ -434,7 +418,7 @@ final class BitRate implements \Stringable, \JsonSerializable
      */
     public function multiply(int|float $factor): self
     {
-        if ($factor < 0) {
+        if (!is_finite($factor) || $factor < 0) {
             throw new \InvalidArgumentException(
                 "Multiply factor must be >= 0, $factor given."
             );
@@ -459,7 +443,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \DivisionByZeroError('Cannot divide by zero.');
         }
 
-        if ($divisor < 0) {
+        if (!is_finite($divisor) || $divisor < 0) {
             throw new \InvalidArgumentException(
                 "Divisor must be > 0, $divisor given."
             );
@@ -475,7 +459,7 @@ final class BitRate implements \Stringable, \JsonSerializable
      */
     public function throttle(float $factor): self
     {
-        if ($factor < 0.0 || $factor > 1.0) {
+        if (!is_finite($factor) || $factor < 0.0 || $factor > 1.0) {
             throw new \InvalidArgumentException(
                 "Throttle factor must be between 0 and 1, $factor given."
             );
@@ -530,9 +514,12 @@ final class BitRate implements \Stringable, \JsonSerializable
             );
         }
 
-        $bytes = $dataSize instanceof Byte ? $dataSize->value : Byte::parseValue($dataSize);
+        $bytes = $dataSize instanceof Byte ? $dataSize->value : Byte::parse($dataSize);
 
-        return ($bytes * 8) / $this->value;
+        if ($bytes < 0) {
+            throw new \InvalidArgumentException('Data size must be nonnegative.');
+        }
+        return (new Byte($bytes))->getTransferTime($this);
     }
 
     /**
@@ -540,6 +527,9 @@ final class BitRate implements \Stringable, \JsonSerializable
      */
     public function calculateTransferAmount(int|float $seconds): Byte
     {
+        if (!is_finite($seconds) || $seconds < 0) {
+            throw new \InvalidArgumentException('Transfer duration must be finite and nonnegative.');
+        }
         return Byte::fromBits($this->value * $seconds);
     }
 
@@ -629,14 +619,12 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Step value must be greater than zero.');
         }
 
-        $count = (int) ceil(($endValue - $startValue) / $stepValue) + 1;
-
-        if ($count > self::MAX_RANGE_ITERATIONS) {
-            throw new \InvalidArgumentException(
-                "Range would produce $count iterations, exceeding the limit of "
-                . self::MAX_RANGE_ITERATIONS . '.'
-            );
+        $lastIndex = floor(($endValue - $startValue) / $stepValue);
+        if (!is_finite($lastIndex) || $lastIndex >= self::MAX_RANGE_ITERATIONS) {
+            throw new \InvalidArgumentException('Range exceeds the maximum number of elements.');
         }
+
+        $count = (int) $lastIndex + 1;
 
         $result = [];
 
@@ -647,6 +635,9 @@ final class BitRate implements \Stringable, \JsonSerializable
                 break;
             }
 
+            if ($i > 0 && $current <= $result[$i - 1]->value) {
+                throw new \InvalidArgumentException('Range step is smaller than numeric precision.');
+            }
             $result[] = new self($current, $displayUnit);
         }
 
@@ -670,7 +661,7 @@ final class BitRate implements \Stringable, \JsonSerializable
     {
         $value = trim($value);
 
-        if (!preg_match('/^(\d*\.?\d+(?:[eE][+-]?\d+)?)\s*([a-zA-Z]+)$/', $value, $matches)) {
+        if (!preg_match('/\A(\d*\.?\d+(?:[eE][+-]?\d+)?)\s*([a-zA-Z][a-zA-Z \/]*)\z/', $value, $matches)) {
             throw new \InvalidArgumentException(
                 "Failed to parse rate '$value': expected a number followed by a unit (e.g. \"10 Mbps\", \".5 Gbps\", \"1e3 kbps\")."
             );
@@ -678,7 +669,11 @@ final class BitRate implements \Stringable, \JsonSerializable
 
         $unit = BitRateUnit::fromLabel($matches[2]);
 
-        return [(float) $matches[1] * $unit->bitsFactor(), $unit];
+        $result = ($matches[1] + 0) * $unit->bitsFactor();
+        if (!is_finite($result)) {
+            throw new \InvalidArgumentException('Bit rate must be finite.');
+        }
+        return [$result, $unit];
     }
 
     /** Extracts the bps value from any operand type. */
@@ -691,7 +686,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         if (is_numeric($operand)) {
             $result = $operand + 0;
 
-            if ($result < 0) {
+            if (!is_finite($result) || $result < 0) {
                 throw new \InvalidArgumentException(
                     "BitRate value must be >= 0, $result given."
                 );

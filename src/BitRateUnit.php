@@ -114,7 +114,7 @@ enum BitRateUnit: string
      */
     public static function bestFit(int|float $bitsPerSecond, bool $bitFamily = true): self
     {
-        if ($bitsPerSecond < 0) {
+        if (!is_finite($bitsPerSecond) || $bitsPerSecond < 0) {
             throw new \InvalidArgumentException(
                 "Bit-rate value must be >= 0, {$bitsPerSecond} given."
             );
@@ -148,6 +148,10 @@ enum BitRateUnit: string
     private static function normalizeLabel(string $label): string
     {
         $label = trim($label);
+        if (preg_match('/\A([kKmMgGtT]?)([bB])(?:ps|\/s)\z/', $label, $symbol) === 1) {
+            $prefix = strtoupper($symbol[1]);
+            return $symbol[2] === 'B' ? $prefix . 'Bps' : strtolower($prefix) . 'bps';
+        }
         $label = str_replace([' ', '_', '-'], '', $label);
 
         // Preserve uppercase B in byte units because Mbps and MBps are different.

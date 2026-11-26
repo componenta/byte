@@ -26,3 +26,36 @@ it('calculates transferable amount', function (): void {
     expect($amount)->toBeInstanceOf(Byte::class)
         ->and($amount->value)->toBe(1_000_000);
 });
+
+
+it('calculates transfer time for all documented operand forms', function (): void {
+    $rate = BitRate::mbps(8);
+    expect($rate->calculateTransferTime(Byte::mb(1)))->toBe(1.0)
+        ->and($rate->calculateTransferTime(1000000))->toBe(1.0)
+        ->and($rate->calculateTransferTime('1 MB'))->toBe(1.0);
+});
+
+it('parses case-sensitive bit and byte rate symbols', function (): void {
+    expect(BitRate::fromHumanReadable('1 Mb/s')->value)->toBe(1000000)
+        ->and(BitRate::fromHumanReadable('1 MB/s')->value)->toBe(8000000)
+        ->and(BitRate::fromHumanReadable('1 b/s')->value)->toBe(1)
+        ->and(BitRate::fromHumanReadable('1 B/s')->value)->toBe(8);
+});
+
+it('keeps ordering and equality consistent', function (): void {
+    $rate = BitRate::bps(1000000000000);
+    expect($rate->equalTo(1000000000001))->toBeFalse()
+        ->and($rate->compare(1000000000001))->toBe(-1)
+        ->and($rate->lessThan(1000000000001))->toBeTrue()
+        ->and($rate->approximatelyEquals(1000000000001))->toBeTrue();
+});
+
+it('rejects nonfinite rates and unsafe integer conversions', function (): void {
+    expect(fn () => BitRate::bps(NAN))->toThrow(\InvalidArgumentException::class)
+        ->and(fn () => BitRate::bps(INF))->toThrow(\InvalidArgumentException::class)
+        ->and(fn () => BitRate::bps(1e100)->toInt())->toThrow(\OverflowException::class)
+        ->and(BitRate::bps(PHP_INT_MAX)->toInt())->toBe(PHP_INT_MAX)
+        ->and(fn () => BitRate::range(0, 1e100, 1))->toThrow(\InvalidArgumentException::class)
+        ->and(fn () => BitRate::bps(1)->calculateTransferAmount(-1))->toThrow(\InvalidArgumentException::class)
+        ->and(fn () => BitRate::bps(1)->calculateTransferTime(-1))->toThrow(\InvalidArgumentException::class);
+});
