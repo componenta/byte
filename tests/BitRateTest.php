@@ -104,3 +104,18 @@ it('generates exact mixed integral ranges and uses exact zero tolerance comparis
     expect($values)->toBe([$start, $start + 1, $start + 2])
         ->and(BitRate::bps(PHP_INT_MAX)->approximatelyEquals((float) PHP_INT_MAX, 0.0))->toBeFalse();
 });
+
+it('preserves exact integer identities with integral floating point operands', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integers.');
+    }
+
+    $number = 9007199254740993;
+    $rate = BitRate::bps($number);
+    expect($rate->increment(0.0)->value)->toBe($number)
+        ->and($rate->decrement(0.0)->value)->toBe($number)
+        ->and($rate->multiply(1.0)->value)->toBe($number)
+        ->and($rate->divide(1.0)->value)->toBe($number)
+        ->and($rate->throttle(1.0)->value)->toBe($number)
+        ->and(BitRate::sum([$rate, 0.0])->value)->toBe($number);
+});

@@ -32,23 +32,6 @@ final class NumericComparison
         return $order !== 0 ? $order : ((float) $whole <=> $right);
     }
 
-    /** Preserve exact differences when mixed operands are integral and in range. */
-    public static function subtract(int|float $left, int|float $right): int|float
-    {
-        return self::asIntegerIfExact($left) - self::asIntegerIfExact($right);
-    }
-
-    /** @internal Used by exact integral range generation. */
-    public static function asIntegerIfExact(int|float $value): int|float
-    {
-        if (is_float($value) && $value >= (float) PHP_INT_MIN
-            && $value < (float) PHP_INT_MAX + 1.0 && floor($value) === $value) {
-            return (int) $value;
-        }
-
-        return $value;
-    }
-
     public static function min(int|float $left, int|float $right): int|float
     {
         return self::compare($left, $right) <= 0 ? $left : $right;

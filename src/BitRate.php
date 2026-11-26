@@ -259,7 +259,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             return NumericComparison::compare($this->value, $b) === 0;
         }
 
-        return abs(NumericComparison::subtract($this->value, $b)) <= max($epsilon, $epsilon * max(abs($this->value), abs($b)));
+        return abs(NumericArithmetic::subtract($this->value, $b)) <= max($epsilon, $epsilon * max(abs($this->value), abs($b)));
     }
 
     public function lessThan(self|int|float|string $operand): bool
@@ -398,7 +398,7 @@ final class BitRate implements \Stringable, \JsonSerializable
 
     public function increment(self|int|float|string $value): self
     {
-        return new self($this->value + self::operandValue($value), $this->displayUnit);
+        return new self(NumericArithmetic::add($this->value, self::operandValue($value)), $this->displayUnit);
     }
 
     /**
@@ -414,7 +414,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             );
         }
 
-        return new self(NumericComparison::subtract($this->value, $operand), $this->displayUnit);
+        return new self(NumericArithmetic::subtract($this->value, $operand), $this->displayUnit);
     }
 
     /**
@@ -428,7 +428,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             );
         }
 
-        return new self($this->value * $factor, $this->displayUnit);
+        return new self(NumericArithmetic::multiply($this->value, $factor), $this->displayUnit);
     }
 
     /**
@@ -453,7 +453,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             );
         }
 
-        return new self($this->value / $divisor, $this->displayUnit);
+        return new self(NumericArithmetic::divide($this->value, $divisor), $this->displayUnit);
     }
 
     /**
@@ -534,7 +534,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         if (!is_finite($seconds) || $seconds < 0) {
             throw new \InvalidArgumentException('Transfer duration must be finite and nonnegative.');
         }
-        $bits = $this->value * $seconds;
+        $bits = NumericArithmetic::multiply($this->value, $seconds);
         return is_finite($bits) ? Byte::fromBits($bits) : Byte::b(($this->value / 8) * $seconds);
     }
 
@@ -555,7 +555,12 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot compute sum of an empty array.');
         }
 
-        return new self(array_sum(array_map(self::operandValue(...), $rates)), $displayUnit);
+        $total = 0;
+        foreach ($rates as $rate) {
+            $total = NumericArithmetic::add($total, self::operandValue($rate));
+        }
+
+        return new self($total, $displayUnit);
     }
 
     /**

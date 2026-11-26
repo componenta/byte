@@ -347,7 +347,7 @@ final class Byte implements \Stringable
 
     public function increment(Byte|int|float|string $value): self
     {
-        return new self($this->value + self::parse($value));
+        return new self(NumericArithmetic::add($this->value, self::parse($value)));
     }
 
     /**
@@ -363,7 +363,7 @@ final class Byte implements \Stringable
             );
         }
 
-        return new self(NumericComparison::subtract($this->value, $parsed));
+        return new self(NumericArithmetic::subtract($this->value, $parsed));
     }
 
     /**
@@ -371,13 +371,13 @@ final class Byte implements \Stringable
      */
     public function divide(int|float $value): self
     {
-        return new self($this->value / self::nonZero($value));
+        return new self(NumericArithmetic::divide($this->value, self::nonZero($value)));
     }
 
     /** Dividing two sizes produces a dimensionless ratio. */
     public function ratio(Byte|int|float|string $value): int|float
     {
-        return self::finite($this->value / self::nonZero(self::parse($value)));
+        return self::finite(NumericArithmetic::divide($this->value, self::nonZero(self::parse($value))));
     }
 
     private static function nonZero(int|float $value): int|float
@@ -391,7 +391,7 @@ final class Byte implements \Stringable
 
     public function multiply(int|float $value): self
     {
-        return new self($this->value * $value);
+        return new self(NumericArithmetic::multiply($this->value, $value));
     }
 
     /**
@@ -408,9 +408,7 @@ final class Byte implements \Stringable
             throw new \DivisionByZeroError('Cannot take modulo with zero.');
         }
 
-        return new self(is_int($this->value) && is_int($parsed)
-            ? $this->value % $parsed
-            : fmod($this->value, $parsed));
+        return new self(NumericArithmetic::modulo($this->value, $parsed));
     }
 
     public function abs(): self
@@ -467,7 +465,7 @@ final class Byte implements \Stringable
         $total = 0;
 
         foreach ($bytes as $byte) {
-            $total += self::parse($byte);
+            $total = NumericArithmetic::add($total, self::parse($byte));
         }
 
         return new self($total);

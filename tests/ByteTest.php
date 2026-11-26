@@ -93,3 +93,19 @@ it('generates exact integral ranges with mixed numeric representations', functio
     $values = array_map(static fn (Byte $byte) => $byte->value, Byte::range($start, $start + 2, 1.0));
     expect($values)->toBe([$start, $start + 1, $start + 2]);
 });
+
+it('preserves exact integer identities with integral floating point operands', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integers.');
+    }
+
+    $number = 9007199254740993;
+    $byte = Byte::b($number);
+    expect($byte->increment(0.0)->value)->toBe($number)
+        ->and($byte->decrement(0.0)->value)->toBe($number)
+        ->and($byte->multiply(1.0)->value)->toBe($number)
+        ->and($byte->divide(1.0)->value)->toBe($number)
+        ->and($byte->ratio(1.0))->toBe($number)
+        ->and($byte->modulo(2.0)->value)->toBe(1)
+        ->and(Byte::sum([$byte, 0.0])->value)->toBe($number);
+});
