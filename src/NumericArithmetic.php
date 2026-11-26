@@ -53,6 +53,50 @@ final class NumericArithmetic
         return $left / $right;
     }
 
+    /** Non-negative decimal precision never changes an integer. */
+    public static function roundToPrecision(int|float $value, int $precision): int|float
+    {
+        if (is_int($value) && $precision >= 0) {
+            return $value;
+        }
+
+        return round($value, $precision);
+    }
+
+    /** @param non-empty-array<int|float> $values */
+    public static function average(array $values): int|float
+    {
+        $count = count($values);
+        $sum = 0;
+        foreach ($values as $value) {
+            $sum = self::add($sum, $value);
+        }
+
+        if (is_finite($sum)) {
+            return self::divide($sum, $count);
+        }
+
+        // The sum can overflow even though the mean of finite values is finite.
+        // Scale by the greatest magnitude before summation to avoid overflow.
+        $scale = 0.0;
+        foreach ($values as $value) {
+            $scale = max($scale, abs($value));
+        }
+
+        $sum = 0.0;
+        $compensation = 0.0;
+        foreach ($values as $value) {
+            $term = $value / $scale - $compensation;
+            $next = $sum + $term;
+            $compensation = ($next - $sum) - $term;
+            $sum = $next;
+        }
+
+        // Guard against floating-point overshoot of the normalized mean.
+        $mean = max(-1.0, min(1.0, $sum / $count));
+        return $mean * $scale;
+    }
+
     public static function modulo(int|float $left, int|float $right): int|float
     {
         [$left, $right] = self::operands($left, $right);

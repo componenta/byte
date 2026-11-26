@@ -182,7 +182,7 @@ final class BitRate implements \Stringable, \JsonSerializable
         $converted = $this->value / $unit->bitsFactor();
 
         if ($precision !== null) {
-            $converted = round($converted, $precision);
+            $converted = NumericArithmetic::roundToPrecision($converted, $precision);
         }
 
         return $converted . $delim . $unit->value;
@@ -227,7 +227,7 @@ final class BitRate implements \Stringable, \JsonSerializable
     public function getRateValue(BitRateUnit $unit, ?int $precision = null): float|int
     {
         $value = $this->value / $unit->bitsFactor();
-        return $precision !== null ? round($value, $precision) : $value;
+        return $precision !== null ? NumericArithmetic::roundToPrecision($value, $precision) : $value;
     }
 
     /** Returns a copy with a different display unit. */
@@ -572,7 +572,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot compute average of an empty array.');
         }
 
-        return self::sum($rates, $displayUnit)->divide(count($rates));
+        return new self(NumericArithmetic::average(array_map(self::operandValue(...), $rates)), $displayUnit);
     }
 
     /**

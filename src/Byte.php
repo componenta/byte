@@ -181,7 +181,7 @@ final class Byte implements \Stringable
         $converted = $this->value / $resolved->multiplier();
 
         if ($precision !== null) {
-            $converted = round($converted, $precision);
+            $converted = NumericArithmetic::roundToPrecision($converted, $precision);
         }
 
         return $converted . $delim . $label;
@@ -236,7 +236,7 @@ final class Byte implements \Stringable
     {
         $value = $this->value / self::resolveUnit($unit)->multiplier();
 
-        return $precision !== null ? round($value, $precision) : $value;
+        return $precision !== null ? NumericArithmetic::roundToPrecision($value, $precision) : $value;
     }
 
     /** Converts bytes to bits. */
@@ -251,7 +251,7 @@ final class Byte implements \Stringable
     public static function humanize(int|float $bytes, int $precision = 2, string $delim = ' '): string
     {
         $unit = ByteUnit::bestFit(abs($bytes));
-        $value = round($bytes / $unit->multiplier(), $precision);
+        $value = NumericArithmetic::roundToPrecision($bytes / $unit->multiplier(), $precision);
 
         return $value . $delim . $unit->label();
     }
@@ -482,7 +482,7 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Cannot compute average of an empty array.');
         }
 
-        return self::sum($bytes)->divide(count($bytes));
+        return new self(NumericArithmetic::average(array_map(self::parse(...), $bytes)));
     }
 
     /**

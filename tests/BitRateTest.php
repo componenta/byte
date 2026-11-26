@@ -119,3 +119,20 @@ it('preserves exact integer identities with integral floating point operands', f
         ->and($rate->throttle(1.0)->value)->toBe($number)
         ->and(BitRate::sum([$rate, 0.0])->value)->toBe($number);
 });
+
+it('preserves exact integral rate values when formatting at nonnegative precision', function (): void {
+    $number = PHP_INT_MAX;
+    $rate = BitRate::bps($number);
+    expect($rate->getRateValue(BitRateUnit::BPS, 0))->toBe($number)
+        ->and($rate->getRateValue(BitRateUnit::BPS, 2))->toBe($number)
+        ->and($rate->to(BitRateUnit::BPS, 0))->toBe($number . ' bps')
+        ->and($rate->to(BitRateUnit::BPS, 2))->toBe($number . ' bps');
+});
+
+it('computes a finite average even when the sum overflows', function (): void {
+    $unit = BitRateUnit::BPS_BYTE;
+    $average = BitRate::average([PHP_FLOAT_MAX, PHP_FLOAT_MAX], $unit);
+    expect($average->value)->toBe(PHP_FLOAT_MAX)
+        ->and($average->displayUnit)->toBe($unit)
+        ->and(BitRate::average([2, 4])->value)->toBe(3);
+});

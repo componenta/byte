@@ -109,3 +109,19 @@ it('preserves exact integer identities with integral floating point operands', f
         ->and($byte->modulo(2.0)->value)->toBe(1)
         ->and(Byte::sum([$byte, 0.0])->value)->toBe($number);
 });
+
+it('preserves exact integral byte values when formatting at nonnegative precision', function (): void {
+    $number = PHP_INT_MAX;
+    $byte = Byte::b($number);
+    expect($byte->getValue('B', 0))->toBe($number)
+        ->and($byte->getValue('B', 2))->toBe($number)
+        ->and($byte->to('B', 0))->toBe($number . ' B')
+        ->and($byte->to('B', 2))->toBe($number . ' B');
+});
+
+it('computes a finite average even when the sum overflows', function (): void {
+    expect(Byte::average([PHP_FLOAT_MAX, PHP_FLOAT_MAX])->value)->toBe(PHP_FLOAT_MAX)
+        ->and(Byte::average([-PHP_FLOAT_MAX, -PHP_FLOAT_MAX])->value)->toBe(-PHP_FLOAT_MAX)
+        ->and(Byte::average([PHP_FLOAT_MAX, PHP_FLOAT_MAX, -PHP_FLOAT_MAX, -PHP_FLOAT_MAX])->value)->toBe(0.0)
+        ->and(Byte::average([2, 4])->value)->toBe(3);
+});
