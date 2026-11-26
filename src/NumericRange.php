@@ -16,6 +16,20 @@ final class NumericRange
             throw new \InvalidArgumentException('Expected an ascending range and a positive step.');
         }
 
+        // Integral mixed operands can be computed exactly, even above 2^53.
+        // Preserve the floating-point path when all operands are floats or
+        // when any operand is not representable as a PHP integer.
+        if (is_int($start) || is_int($end) || is_int($step)) {
+            $integerStart = NumericComparison::asIntegerIfExact($start);
+            $integerEnd = NumericComparison::asIntegerIfExact($end);
+            $integerStep = NumericComparison::asIntegerIfExact($step);
+            if (is_int($integerStart) && is_int($integerEnd) && is_int($integerStep)) {
+                $start = $integerStart;
+                $end = $integerEnd;
+                $step = $integerStep;
+            }
+        }
+
         $distance = $end - $start;
         $estimate = is_finite($distance)
             ? $distance / $step

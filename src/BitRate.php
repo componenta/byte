@@ -255,6 +255,10 @@ final class BitRate implements \Stringable, \JsonSerializable
         }
 
         $b = self::operandValue($operand);
+        if ($epsilon === 0.0) {
+            return NumericComparison::compare($this->value, $b) === 0;
+        }
+
         return abs(NumericComparison::subtract($this->value, $b)) <= max($epsilon, $epsilon * max(abs($this->value), abs($b)));
     }
 

@@ -93,3 +93,14 @@ it('preserves bit versus byte meaning across accepted label variants', function 
     ['M bps', 1_000_000], ['M Bps', 8_000_000], ['MBPS', 8_000_000],
     ['Mb/S', 1_000_000],
 ]);
+
+it('generates exact mixed integral ranges and uses exact zero tolerance comparison', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integer representation.');
+    }
+
+    $start = 9007199254740993;
+    $values = array_map(static fn (BitRate $rate) => $rate->value, BitRate::range($start, $start + 2, 1.0));
+    expect($values)->toBe([$start, $start + 1, $start + 2])
+        ->and(BitRate::bps(PHP_INT_MAX)->approximatelyEquals((float) PHP_INT_MAX, 0.0))->toBeFalse();
+});

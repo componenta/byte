@@ -38,7 +38,8 @@ final class NumericComparison
         return self::asIntegerIfExact($left) - self::asIntegerIfExact($right);
     }
 
-    private static function asIntegerIfExact(int|float $value): int|float
+    /** @internal Used by exact integral range generation. */
+    public static function asIntegerIfExact(int|float $value): int|float
     {
         if (is_float($value) && $value >= (float) PHP_INT_MIN
             && $value < (float) PHP_INT_MAX + 1.0 && floor($value) === $value) {

@@ -83,3 +83,13 @@ it('handles finite ranges even when their span overflows floating point', functi
     $values = array_map(static fn (Byte $byte) => $byte->value, Byte::range(-PHP_FLOAT_MAX, PHP_FLOAT_MAX, PHP_FLOAT_MAX));
     expect($values)->toBe([-PHP_FLOAT_MAX, 0.0, PHP_FLOAT_MAX]);
 });
+
+it('generates exact integral ranges with mixed numeric representations', function (): void {
+    if (PHP_INT_SIZE < 8) {
+        $this->markTestSkipped('Requires 64-bit integer representation.');
+    }
+
+    $start = 9007199254740993;
+    $values = array_map(static fn (Byte $byte) => $byte->value, Byte::range($start, $start + 2, 1.0));
+    expect($values)->toBe([$start, $start + 1, $start + 2]);
+});
