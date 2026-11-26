@@ -84,3 +84,12 @@ it('preserves a mixed integer-float decrement and zero tolerance equality', func
 it('rejects ranges exceeding the allocation cap by exactly one element', function (): void {
     expect(fn () => BitRate::range(0, 1_000_000, 1))->toThrow(\InvalidArgumentException::class);
 });
+
+it('preserves bit versus byte meaning across accepted label variants', function (string $label, int $expected): void {
+    expect(BitRate::fromLabel(1, $label)->value)->toBe($expected)
+        ->and(BitRate::fromHumanReadable('1 ' . $label)->value)->toBe($expected);
+})->with([
+    ['Mb /s', 1_000_000], ['MB /s', 8_000_000], ['b /s', 1], ['B /s', 8],
+    ['M bps', 1_000_000], ['M Bps', 8_000_000], ['MBPS', 8_000_000],
+    ['Mb/S', 1_000_000],
+]);

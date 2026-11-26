@@ -74,7 +74,7 @@ enum BitRateUnit: string
     }
 
     /**
-     * Resolves a unit label case-insensitively.
+     * Resolves a unit label, preserving the case of the bit/byte symbol.
      *
      * Accepted examples:
      *  - bps, bit/s, bits/s
@@ -147,12 +147,11 @@ enum BitRateUnit: string
 
     private static function normalizeLabel(string $label): string
     {
-        $label = trim($label);
-        if (preg_match('/\A([kKmMgGtT]?)([bB])(?:ps|\/s)\z/', $label, $symbol) === 1) {
+        $label = str_replace([' ', '_', '-'], '', trim($label));
+        if (preg_match('/\A([kKmMgGtT]?)([bB])(?:[pP][sS]|\/[sS])\z/', $label, $symbol) === 1) {
             $prefix = strtoupper($symbol[1]);
             return $symbol[2] === 'B' ? $prefix . 'Bps' : strtolower($prefix) . 'bps';
         }
-        $label = str_replace([' ', '_', '-'], '', $label);
 
         // Preserve uppercase B in byte units because Mbps and MBps are different.
         foreach (self::cases() as $case) {
@@ -172,11 +171,11 @@ enum BitRateUnit: string
             'tbps', 'tbitps', 'tbit/s', 'tbits/s', 'terabit/s', 'terabits/s' => $lower,
 
             // For byte units, normalize explicit words and slash labels to canonical case.
-            'b/s', 'byteps', 'byte/s', 'bytes/s', 'bytesec', 'byte/sec', 'bytes/sec' => 'Bps',
-            'kb/s', 'kbyte/s', 'kbytes/s', 'kilobyte/s', 'kilobytes/s' => 'KBps',
-            'mb/s', 'mbyte/s', 'mbytes/s', 'megabyte/s', 'megabytes/s' => 'MBps',
-            'gb/s', 'gbyte/s', 'gbytes/s', 'gigabyte/s', 'gigabytes/s' => 'GBps',
-            'tb/s', 'tbyte/s', 'tbytes/s', 'terabyte/s', 'terabytes/s' => 'TBps',
+            'byteps', 'byte/s', 'bytes/s', 'bytesec', 'byte/sec', 'bytes/sec' => 'Bps',
+            'kbyte/s', 'kbytes/s', 'kilobyte/s', 'kilobytes/s' => 'KBps',
+            'mbyte/s', 'mbytes/s', 'megabyte/s', 'megabytes/s' => 'MBps',
+            'gbyte/s', 'gbytes/s', 'gigabyte/s', 'gigabytes/s' => 'GBps',
+            'tbyte/s', 'tbytes/s', 'terabyte/s', 'terabytes/s' => 'TBps',
 
             default => $label,
         };
