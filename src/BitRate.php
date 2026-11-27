@@ -576,7 +576,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot compute average of an empty array.');
         }
 
-        return new self(NumericArithmetic::average(array_map(self::operandValue(...), $rates)), $displayUnit);
+        return new self(NumericArithmetic::average(array_map(static fn(mixed $rate): int|float => self::operandValue($rate), $rates)), $displayUnit);
     }
 
     /**
@@ -588,7 +588,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot find maximum of an empty array.');
         }
 
-        $values = array_map(self::operandValue(...), $rates);
+        $values = array_map(static fn(mixed $rate): int|float => self::operandValue($rate), $rates);
         $first = array_shift($values);
         return new self(array_reduce($values, NumericComparison::max(...), $first), $displayUnit);
     }
@@ -602,7 +602,7 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Cannot find minimum of an empty array.');
         }
 
-        $values = array_map(self::operandValue(...), $rates);
+        $values = array_map(static fn(mixed $rate): int|float => self::operandValue($rate), $rates);
         $first = array_shift($values);
         return new self(array_reduce($values, NumericComparison::min(...), $first), $displayUnit);
     }

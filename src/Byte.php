@@ -476,7 +476,7 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Cannot compute average of an empty array.');
         }
 
-        return new self(NumericArithmetic::average(array_map(self::parse(...), $bytes)));
+        return new self(NumericArithmetic::average(array_map(static fn(mixed $byte): int|float => self::parse($byte), $bytes)));
     }
 
     /**
@@ -490,7 +490,7 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Cannot find maximum of an empty array.');
         }
 
-        $values = array_map(self::parse(...), $bytes);
+        $values = array_map(static fn(mixed $byte): int|float => self::parse($byte), $bytes);
         $first = array_shift($values);
         return new self(array_reduce($values, NumericComparison::max(...), $first));
     }
@@ -506,7 +506,7 @@ final class Byte implements \Stringable
             throw new \InvalidArgumentException('Cannot find minimum of an empty array.');
         }
 
-        $values = array_map(self::parse(...), $bytes);
+        $values = array_map(static fn(mixed $byte): int|float => self::parse($byte), $bytes);
         $first = array_shift($values);
         return new self(array_reduce($values, NumericComparison::min(...), $first));
     }

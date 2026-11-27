@@ -176,3 +176,9 @@ it('rejects unsupported comparison modes for single and collection operands', fu
         }
     }
 });
+
+it('rejects unsupported array operand types consistently across aggregate functions', function (mixed $value): void {
+    foreach (['sum', 'average', 'minimum', 'maximum'] as $method) {
+        expect(fn () => Byte::$method([$value]))->toThrow(\TypeError::class);
+    }
+})->with([true, false, null, [[]]]);

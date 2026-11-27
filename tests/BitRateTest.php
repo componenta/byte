@@ -168,3 +168,9 @@ it('honors all supported half-rounding modes without rounding exact integers', f
     [PHP_ROUND_HALF_EVEN, 2],
     [PHP_ROUND_HALF_ODD, 3],
 ]);
+
+it('rejects unsupported array operand types consistently across aggregate functions', function (mixed $value): void {
+    foreach (['sum', 'average', 'minimum', 'maximum'] as $method) {
+        expect(fn () => BitRate::$method([$value]))->toThrow(\TypeError::class);
+    }
+})->with([true, false, null, [[]]]);
