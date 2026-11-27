@@ -147,3 +147,21 @@ it('exposes consistent SI and IEC unit metadata and conversion factors', functio
             ->and(Byte::fromHumanReadable('1 ' . $unit->label())->value)->toBe($factor);
     }
 });
+
+it('retains representable signed sums after intermediate integer overflow', function (): void {
+    $max = PHP_INT_MAX;
+    $min = PHP_INT_MIN;
+
+    expect(Byte::sum([$max, 1, -$max])->value)->toBe(1)
+        ->and(Byte::sum([$max, $max, -$max])->value)->toBe($max)
+        ->and(Byte::sum([$min, -1, $max, 2])->value)->toBe(0)
+        ->and(Byte::sum([$max, 1.0, -$max])->value)->toBe(1);
+});
+
+it('recovers finite signed sums after floating point overflow', function (): void {
+    $max = PHP_FLOAT_MAX;
+
+    expect(Byte::sum([$max, $max, -$max])->value)->toBe($max)
+        ->and(Byte::sum([$max, $max, -$max, -$max])->value)->toBe(0.0)
+        ->and(fn () => Byte::sum([$max, $max]))->toThrow(\InvalidArgumentException::class);
+});

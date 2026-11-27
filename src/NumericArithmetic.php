@@ -53,6 +53,101 @@ final class NumericArithmetic
         return $left / $right;
     }
 
+    /**
+     * Sum signed quantities. Use the native fast path until integer precision
+     * or finiteness is lost, then recover a representable result if possible.
+     *
+     * @param callable(mixed): (int|float) $parse
+     */
+    public static function sum(array $values, callable $parse): int|float
+    {
+        $total = 0;
+        $integralOverflow = false;
+        foreach ($values as $value) {
+            $number = $parse($value);
+            $next = self::add($total, $number);
+            if (is_int($total) && is_float($next) && is_int(self::asIntegerIfExact($number))) {
+                $integralOverflow = true;
+            }
+            $total = $next;
+        }
+
+        if (!$integralOverflow && is_finite($total)) {
+            return $total;
+        }
+
+        $numbers = array_map($parse, $values);
+        if ($integralOverflow) {
+            $integral = self::sumIntegralWithCancellation($numbers);
+            if ($integral !== null) {
+                return $integral;
+            }
+        }
+
+        if (is_finite($total)) {
+            return $total;
+        }
+
+        $scale = 0.0;
+        foreach ($numbers as $number) {
+            $scale = max($scale, abs($number));
+        }
+
+        // Scale to prevent overflow in partial sums, and compensate rounding.
+        $sum = 0.0;
+        $correction = 0.0;
+        foreach ($numbers as $number) {
+            $term = $number / $scale;
+            $next = $sum + $term;
+            $correction += abs($sum) >= abs($term)
+                ? ($sum - $next) + $term
+                : ($term - $next) + $sum;
+            $sum = $next;
+        }
+
+        return ($sum + $correction) * $scale;
+    }
+
+    /** @param array<int|float> $numbers */
+    private static function sumIntegralWithCancellation(array $numbers): int|float|null
+    {
+        $positive = [];
+        $negative = [];
+        foreach ($numbers as $number) {
+            $number = self::asIntegerIfExact($number);
+            if (!is_int($number)) {
+                return null;
+            }
+
+            if ($number > 0) {
+                $positive[] = $number;
+            } elseif ($number < 0) {
+                $negative[] = $number;
+            }
+        }
+
+        // Adding opposite signs cannot overflow. Once one side is exhausted,
+        // any remaining overflow means the exact result is outside int range.
+        $total = 0;
+        $p = 0;
+        $n = 0;
+        $pCount = count($positive);
+        $nCount = count($negative);
+        while ($p < $pCount && $n < $nCount) {
+            $total += $total >= 0 ? $negative[$n++] : $positive[$p++];
+        }
+
+        while ($p < $pCount) {
+            $total += $positive[$p++];
+        }
+
+        while ($n < $nCount) {
+            $total += $negative[$n++];
+        }
+
+        return $total;
+    }
+
     /** Non-negative decimal precision never changes an integer. */
     public static function roundToPrecision(int|float $value, int $precision): int|float
     {

@@ -462,13 +462,7 @@ final class Byte implements \Stringable
      */
     public static function sum(array $bytes): self
     {
-        $total = 0;
-
-        foreach ($bytes as $byte) {
-            $total = NumericArithmetic::add($total, self::parse($byte));
-        }
-
-        return new self($total);
+        return new self(NumericArithmetic::sum($bytes, self::parse(...)));
     }
 
     /**
