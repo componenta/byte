@@ -211,6 +211,10 @@ final class BitRate implements \Stringable, \JsonSerializable
      */
     public function toInt(int $roundingMode = PHP_ROUND_HALF_UP): int
     {
+        if (!in_array($roundingMode, [PHP_ROUND_HALF_UP, PHP_ROUND_HALF_DOWN, PHP_ROUND_HALF_EVEN, PHP_ROUND_HALF_ODD], true)) {
+            throw new \ValueError('Unsupported rounding mode.');
+        }
+
         if (is_int($this->value)) {
             return $this->value;
         }

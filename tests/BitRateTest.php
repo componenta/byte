@@ -153,3 +153,18 @@ it('uses the same unit alias semantics for label and human-readable factories', 
     ['mega-bit/s', 1_000_000],
     ['mega_byte/s', 8_000_000],
 ]);
+
+it('validates the rounding mode before the integer fast path', function (int $mode): void {
+    expect(fn () => BitRate::bps(1)->toInt($mode))->toThrow(\ValueError::class)
+        ->and(fn () => BitRate::bps(1.5)->toInt($mode))->toThrow(\ValueError::class);
+})->with([0, -1, 5, 999]);
+
+it('honors all supported half-rounding modes without rounding exact integers', function (int $mode, int $expected): void {
+    expect(BitRate::bps(2.5)->toInt($mode))->toBe($expected)
+        ->and(BitRate::bps(PHP_INT_MAX)->toInt($mode))->toBe(PHP_INT_MAX);
+})->with([
+    [PHP_ROUND_HALF_UP, 3],
+    [PHP_ROUND_HALF_DOWN, 2],
+    [PHP_ROUND_HALF_EVEN, 2],
+    [PHP_ROUND_HALF_ODD, 3],
+]);
