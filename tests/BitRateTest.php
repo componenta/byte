@@ -174,3 +174,18 @@ it('rejects unsupported array operand types consistently across aggregate functi
         expect(fn () => BitRate::$method([$value]))->toThrow(\TypeError::class);
     }
 })->with([true, false, null, [[]]]);
+
+it('preserves an integral transfer amount when its intermediate bit count overflows', function (): void {
+    $max = PHP_INT_MAX;
+    foreach ([
+        [$max, 8, $max],
+        [$max - 1, 4, intdiv($max - 1, 2)],
+        [$max - 3, 2, intdiv($max - 3, 4)],
+        [$max - 7, 1, intdiv($max - 7, 8)],
+        [$max, 8.0, $max],
+        [$max - 1, 4.0, intdiv($max - 1, 2)],
+        [$max, 0, 0],
+    ] as [$rate, $seconds, $expected]) {
+        expect(BitRate::bps($rate)->calculateTransferAmount($seconds)->value)->toBe($expected);
+    }
+});

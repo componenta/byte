@@ -539,6 +539,30 @@ final class BitRate implements \Stringable, \JsonSerializable
             throw new \InvalidArgumentException('Transfer duration must be finite and nonnegative.');
         }
         $bits = NumericArithmetic::multiply($this->value, $seconds);
+
+        // The intermediate bit count can exceed the integer range even when
+        // the final byte count is an exactly representable integer.
+        if (is_float($bits) && (is_int($this->value) || is_int($seconds))) {
+            $rate = NumericArithmetic::asIntegerIfExact($this->value);
+            $time = NumericArithmetic::asIntegerIfExact($seconds);
+            if (is_int($rate) && is_int($time)) {
+                $divisor = 8;
+                while ($divisor > 1) {
+                    if ($rate % 2 === 0) {
+                        $rate = intdiv($rate, 2);
+                    } elseif ($time % 2 === 0) {
+                        $time = intdiv($time, 2);
+                    } else {
+                        break;
+                    }
+                    $divisor = intdiv($divisor, 2);
+                }
+                if ($divisor === 1) {
+                    return Byte::b($rate * $time);
+                }
+            }
+        }
+
         return is_finite($bits) ? Byte::fromBits($bits) : Byte::b(($this->value / 8) * $seconds);
     }
 
