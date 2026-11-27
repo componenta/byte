@@ -137,3 +137,13 @@ it('preserves the exact integer mean when the integer sum overflows', function (
         ->and(Byte::average([$max, 1, -$max, 0])->value)->toBe(0.25)
         ->and(Byte::average([$max, 1, -$max, 3])->value)->toBe(1);
 });
+
+it('exposes consistent SI and IEC unit metadata and conversion factors', function (): void {
+    foreach (\Componenta\Stdlib\ByteUnit::cases() as $unit) {
+        $factor = ($unit->isBinary() ? 1024 : 1000) ** $unit->exponent();
+        expect($unit->multiplier())->toBe($factor)
+            ->and(\Componenta\Stdlib\ByteUnit::fromLabel($unit->label()))->toBe($unit)
+            ->and(Byte::from(1, $unit)->value)->toBe($factor)
+            ->and(Byte::fromHumanReadable('1 ' . $unit->label())->value)->toBe($factor);
+    }
+});

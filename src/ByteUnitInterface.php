@@ -5,33 +5,24 @@ declare(strict_types=1);
 namespace Componenta\Stdlib;
 
 /**
- * Contract for a binary storage unit.
+ * Metadata for a byte-based storage unit.
  *
- * Implementations must be backed enums so that label resolution via
- * {@see fromLabel()} can use {@see \BackedEnum::tryFrom()}.
- *
- * @see ByteUnit The canonical implementation.
+ * The exponent is relative to the unit's own base: SI units use 1000,
+ * IEC units use 1024. The multiplier is the actual number of bytes.
  */
 interface ByteUnitInterface
 {
-    /**
-     * The canonical string label for this unit (e.g. "MB", "GB").
-     *
-     * For backed enums this is simply the backing value.
-     */
+    /** Canonical unit label, for example MB or MiB. */
     public function label(): string;
 
-    /**
-     * Power-of-1024 exponent for this unit.
-     *
-     * @example ByteUnit::MB->exponent() === 2
-     */
+    /** Exponent in the unit's own scaling family. */
     public function exponent(): int;
 
     /**
-     * Byte multiplier for this unit (1024 ** exponent).
+     * Number of bytes per unit.
      *
-     * @example ByteUnit::MB->multiplier() === 1_048_576
+     * For example, ByteUnit::MB has multiplier 1_000_000 and
+     * ByteUnit::MIB has multiplier 1_048_576.
      */
     public function multiplier(): int|float;
 }

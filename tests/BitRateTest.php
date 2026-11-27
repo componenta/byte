@@ -143,3 +143,13 @@ it('preserves exact integer rate averages when the integer sum overflows', funct
     expect(BitRate::average([$max, $max])->value)->toBe($max)
         ->and(BitRate::average([$max, $max - 2])->value)->toBe($max - 1);
 });
+
+it('uses the same unit alias semantics for label and human-readable factories', function (string $label, int $bps): void {
+    expect(BitRate::fromLabel(1, $label)->value)->toBe($bps)
+        ->and(BitRate::fromHumanReadable('1 ' . $label)->value)->toBe($bps);
+})->with([
+    ['M-bps', 1_000_000],
+    ['M_Bps', 8_000_000],
+    ['mega-bit/s', 1_000_000],
+    ['mega_byte/s', 8_000_000],
+]);

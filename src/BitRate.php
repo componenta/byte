@@ -649,7 +649,7 @@ final class BitRate implements \Stringable, \JsonSerializable
     {
         $value = trim($value);
 
-        if (!preg_match('/\A(\d*\.?\d+(?:[eE][+-]?\d+)?)\s*([a-zA-Z][a-zA-Z \/]*)\z/', $value, $matches)) {
+        if (!preg_match('/\A(\d*\.?\d+(?:[eE][+-]?\d+)?)\s*([a-zA-Z][a-zA-Z _\/-]*)\z/', $value, $matches)) {
             throw new \InvalidArgumentException(
                 "Failed to parse rate '$value': expected a number followed by a unit (e.g. \"10 Mbps\", \".5 Gbps\", \"1e3 kbps\")."
             );
