@@ -165,3 +165,14 @@ it('recovers finite signed sums after floating point overflow', function (): voi
         ->and(Byte::sum([$max, $max, -$max, -$max])->value)->toBe(0.0)
         ->and(fn () => Byte::sum([$max, $max]))->toThrow(\InvalidArgumentException::class);
 });
+
+it('rejects unsupported comparison modes for single and collection operands', function (): void {
+    $byte = Byte::b(1);
+
+    foreach (['equalTo', 'lessThan', 'greaterThan', 'lessThanOrEqual', 'greaterThanOrEqual'] as $method) {
+        foreach ([1, 1.0, '1 B', Byte::b(1), [], [1]] as $operand) {
+            expect(fn () => $byte->$method($operand, 'invalid'))
+                ->toThrow(\InvalidArgumentException::class);
+        }
+    }
+});

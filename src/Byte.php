@@ -623,6 +623,10 @@ final class Byte implements \Stringable
         callable $predicate,
         string $mode,
     ): bool {
+        if ($mode !== self::MODE_ALL && $mode !== self::MODE_ANY) {
+            throw new \InvalidArgumentException("Invalid mode: $mode");
+        }
+
         if (!is_array($operand)) {
             return $predicate($operand);
         }
